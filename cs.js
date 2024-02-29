@@ -114,31 +114,57 @@ async function crossSectionalCSVBuilder(resourceId) {
           ) {
             typeCache.set(majorCol.key, "TEXT");
           }
-        } else {
-          console.log("running this!");
+        } else { 
           // For every column
           majorCol.columns.forEach((col) => {
-            const colName = `(${majorCol.key}) ${col.key}`; // Create a column that looks like `(Major Col) Col`
+            if (!col.columns) { // 2 level column 
+                const colName = `(${majorCol.key})_${col.key}`; // Create a column that looks like `(Major Col) Col`
 
-            // Check cache if we already have the machine name for this column, if not generate and set the machine name
-            if (!nameCache.has(colName)) {
-              nameCache.set(colName, normalizeHumanName(colName));
-              typeCache.set(colName, "NUMBER");
-            }
+                // Check cache if we already have the machine name for this column, if not generate and set the machine name
+                if (!nameCache.has(colName)) {
+                  nameCache.set(colName, normalizeHumanName(colName));
+                  typeCache.set(colName, "NUMBER");
+                }
+    
+                // If the row does not exist, create the row
+                rows[idx] ??= {
+                  [nameCache.get(uoM)]: row.rowText,
+                };
+                uoM ??= row.uoM;
+                // console.log(`col value = ${JSON.stringify(col)}`)
+                rows[idx][nameCache.get(colName)] ??= col.value; // If the value does not exist, set the value for the column
+    
+                if (
+                  !col.value ||
+                  (typeCache.get(colName) !== "TEXT" && !isNumeric(col.value))
+                ) {
+                  typeCache.set(colName, "TEXT");
+                }
+            } else { // 3 level column
+                col.columns.forEach((lastCol)=>{
+                    const colName = `${majorCol.key}_${col.key}_${lastCol.key}`; // Create a column that looks like `(Major Col) Col`
 
-            // If the row does not exist, create the row
-            rows[idx] ??= {
-              [nameCache.get(uoM)]: row.rowText,
-            };
-            uoM ??= row.uoM;
-            // console.log(`col value = ${JSON.stringify(col)}`)
-            rows[idx][nameCache.get(colName)] ??= col.value; // If the value does not exist, set the value for the column
-
-            if (
-              !col.value ||
-              (typeCache.get(colName) !== "TEXT" && !isNumeric(col.value))
-            ) {
-              typeCache.set(colName, "TEXT");
+                // Check cache if we already have the machine name for this column, if not generate and set the machine name
+                if (!nameCache.has(colName)) {
+                  nameCache.set(colName, normalizeHumanName(colName));
+                  typeCache.set(colName, "NUMBER");
+                }
+    
+                // If the row does not exist, create the row
+                rows[idx] ??= {
+                  [nameCache.get(uoM)]: row.rowText,
+                };
+                uoM ??= row.uoM;
+                // console.log(`col value = ${JSON.stringify(col)}`)
+                rows[idx][nameCache.get(colName)] ??= lastCol.value; // If the value does not exist, set the value for the column
+    
+                if (
+                  !lastCol.value ||
+                  (typeCache.get(colName) !== "TEXT" && !isNumeric(lastCol.value))
+                ) {
+                  typeCache.set(colName, "TEXT");
+                }
+                })
             }
           });
         }
@@ -164,3 +190,4 @@ async function crossSectionalCSVBuilder(resourceId) {
 //const csv = await crossSectionalCSVBuilder("16622"); //non problematic
 const csv = await crossSectionalCSVBuilder("8358"); //problematic
 createCSVFile(csv.rendered, "output.csv");
+console.log(csv.humanNameToType)

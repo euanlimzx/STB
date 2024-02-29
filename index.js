@@ -48,13 +48,10 @@ async function timeSeriesCSVBuilder(resourceId) {
     if (offset > MAX_PAGES) break; // We should never exceed this
 
     const res = await axios.get(`https://tablebuilder.singstat.gov.sg/api/table/tabledata/${resourceId}?offset=${offset * MAX_CELLS_PER_PAGE}&limit=${MAX_CELLS_PER_PAGE}`)
-    console.log(res)
     if (res.status !== 200) {
       console.log("failed to get stb dataset", { res });
       throw new Error("failed to get stb dataset");
     }
-
-    console.log("starting to parse dataset", { resourceId });
 
     if (res.data.Data.row.every((r) => r.columns.length === 0)) break; // If no data on every row
 
@@ -67,12 +64,12 @@ async function timeSeriesCSVBuilder(resourceId) {
     }
 
     res.data.Data.row.forEach(
-      ({ columns, rowText, seriesNo, uoM: uomValue }, idx) => {
+      (row, idx) => {
+        const { columns, rowText, seriesNo, uoM: uomValue } = row
         const prefix = (seriesNo.match(/\./g) || []).reduce(
           (a) => `${a}    `,
           ""
         );
-
         uoM ??= uomValue;
 
         for (const { key, value } of columns) {
@@ -115,7 +112,7 @@ async function timeSeriesCSVBuilder(resourceId) {
     // Singstat likes to show latest first
     fields: [
       DATA_SERIES_MACHINE_NAME,
-      ...Array.from(nameCache.values()).slice(1).sort().reverse(),
+      ...Array.from(nameCache.values()).slice(1).reverse(),
     ],
     defaultValue: "na", // Match STB CSV generator
   });
@@ -129,7 +126,21 @@ async function timeSeriesCSVBuilder(resourceId) {
   };
 }
 
-const csv = await timeSeriesCSVBuilder("M550002")
+const csv = await timeSeriesCSVBuilder("M601471")
 
+let columnMetadata = Object.keys(csv.raw[0]).map((machineReadableName) => {
+    const humanReadableName = csv.machineToHumanNames.get(machineReadableName) ?? 'x'
+    return {
+      humanReadableName,
+      machineReadableName,
+      dataType: csv.humanNameToType.get(humanReadableName) ?? ReservedColumns.TEXT,
+      unitOfMeasure: csv.uoM,
+    }
+  })
+
+//need to build a checker to see when dataseries is returned - isit at the beginning or the end?? fucksake
+const isDataSeriesFirst = columnMetadata[0].machineReadableName == "DataSeries"
+columnMetadata = isDataSeriesFirst? [columnMetadata[0],...columnMetadata.slice(1).reverse()] : [...columnMetadata.slice(-1),...columnMetadata.slice(0,-1).reverse()]
+console.log(columnMetadata)
 
 createCSVFile(csv.rendered, "output.csv");
