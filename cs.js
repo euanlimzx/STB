@@ -142,8 +142,7 @@ async function crossSectionalCSVBuilder(resourceId) {
                 }
             } else { // 3 level column
                 col.columns.forEach((lastCol)=>{
-                    const colName = `${majorCol.key}_${col.key}_${lastCol.key}`; // Create a column that looks like `(Major Col) Col`
-
+                const colName = `${majorCol.key}_${col.key}_${lastCol.key}`; // Create a column that looks like `(Major Col) Col`
                 // Check cache if we already have the machine name for this column, if not generate and set the machine name
                 if (!nameCache.has(colName)) {
                   nameCache.set(colName, normalizeHumanName(colName));
@@ -157,7 +156,6 @@ async function crossSectionalCSVBuilder(resourceId) {
                 uoM ??= row.uoM;
                 // console.log(`col value = ${JSON.stringify(col)}`)
                 rows[idx][nameCache.get(colName)] ??= lastCol.value; // If the value does not exist, set the value for the column
-    
                 if (
                   !lastCol.value ||
                   (typeCache.get(colName) !== "TEXT" && !isNumeric(lastCol.value))
@@ -173,8 +171,25 @@ async function crossSectionalCSVBuilder(resourceId) {
     offset++;
   }
 
+  for (const idx in rows) {
+    if (rows[idx] && Object.keys(rows[idx]).length < nameCache.size) {
+      // If we have not set all columns for this row, set the remaining columns to `na`
+      for (const column of nameCache.values()) {
+        if (!rows[idx][nameCache.get(column)]) {
+          console.log(
+            `for ${column}, index ${idx}`,
+            rows[idx][nameCache.get(column)]
+          );
+          console.log(Object.keys(rows[idx]).length);
+          typeCache.set(column, "TEXT");
+        }
+      }
+    }
+  }
+
+  const columnOrderSOT = Array.from(nameCache.values())
   const parser = new AsyncParser({
-    fields: Object.keys(rows[rows.length - 1]),
+    fields: columnOrderSOT,
     defaultValue: "na",
   });
 
@@ -184,10 +199,11 @@ async function crossSectionalCSVBuilder(resourceId) {
     machineToHumanNames: new Map(Array.from(nameCache, (e) => [e[1], e[0]])),
     humanNameToType: typeCache,
     rendered: await parser.parse(rows).promise(),
+    columnOrderSOT
   };
 }
 
 //const csv = await crossSectionalCSVBuilder("16622"); //non problematic
 const csv = await crossSectionalCSVBuilder("8358"); //problematic
 createCSVFile(csv.rendered, "output.csv");
-console.log(csv.humanNameToType)
+console.log(csv.raw)

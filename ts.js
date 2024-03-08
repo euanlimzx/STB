@@ -47,12 +47,16 @@ async function timeSeriesCSVBuilder(resourceId) {
   while (true) {
     if (offset > MAX_PAGES) break; // We should never exceed this
 
-    const res = await axios.get(`https://tablebuilder.singstat.gov.sg/api/table/tabledata/${resourceId}?offset=${offset * MAX_CELLS_PER_PAGE}&limit=${MAX_CELLS_PER_PAGE}`)
+    const res = await axios.get(
+      `https://tablebuilder.singstat.gov.sg/api/table/tabledata/${resourceId}?offset=${
+        offset * MAX_CELLS_PER_PAGE
+      }&limit=${MAX_CELLS_PER_PAGE}`
+    );
+
     if (res.status !== 200) {
       console.log("failed to get stb dataset", { res });
       throw new Error("failed to get stb dataset");
     }
-
     if (res.data.Data.row.every((r) => r.columns.length === 0)) break; // If no data on every row
 
     // We assume there is no case where 1 column has all `na` values, which is impossible to represent in the format STB provides
@@ -63,57 +67,73 @@ async function timeSeriesCSVBuilder(resourceId) {
       }
     }
 
-    res.data.Data.row.forEach(
-      (row, idx) => {
-        const { columns, rowText, seriesNo, uoM: uomValue } = row
-        const prefix = (seriesNo.match(/\./g) || []).reduce(
-          (a) => `${a}    `,
-          ""
-        );
-        uoM ??= uomValue;
+    res.data.Data.row.forEach((row, idx) => {
+      const { columns, rowText, seriesNo, uoM: uomValue } = row;
+      if (seriesNo == "3.7.9") {
+        console.log(row);
+      }
+      const prefix = (seriesNo.match(/\./g) || []).reduce(
+        (a) => `${a}    `,
+        ""
+      );
+      uoM ??= uomValue;
 
-        for (const { key, value } of columns) {
-          // If row does not exist, create row with initial column
-          rows[idx] ??= {
-            [DATA_SERIES_MACHINE_NAME]: prefix + rowText, // Title for column header
-          };
+      for (const { key, value } of columns) {
+        // If row does not exist, create row with initial column
+        rows[idx] ??= {
+          [DATA_SERIES_MACHINE_NAME]: prefix + rowText, // Title for column header
+        };
 
-          // If we do not have the machine name for this column, generate and set the machine name
-          if (!nameCache.has(key)) {
-            nameCache.set(key, normalizeHumanName(key));
-            typeCache.set(key, "NUMERIC");
-          }
-
-          rows[idx][nameCache.get(key)] = value; // Set the value for the column
-
-          if (
-            typeCache.get(key) !== "TEXT" &&
-            !isNumeric(value)
-          ) {
-            typeCache.set(key, "TEXT");
-          }
+        // If we do not have the machine name for this column, generate and set the machine name
+        if (!nameCache.has(key)) {
+          nameCache.set(key, normalizeHumanName(key));
+          typeCache.set(key, "NUMERIC");
         }
 
-        if (rows[idx] && Object.keys(rows[idx]).length < allColumns.length) {
-          // If we have not set all columns for this row, set the remaining columns to `na`
-          for (const column of allColumns) {
-            if (!rows[idx][nameCache.get(column)]) {
-              typeCache.set(column, "TEXT");
-            }
+        rows[idx][nameCache.get(key)] = value; // Set the value for the column
+
+        if (typeCache.get(key) !== "TEXT" && !isNumeric(value)) {
+          typeCache.set(key, "TEXT");
+        }
+      }
+
+      if (rows[idx] && Object.keys(rows[idx]).length < allColumns.length) {
+        // If we have not set all columns for this row, set the remaining columns to `na`
+        for (const column of allColumns) {
+          if (!rows[idx][nameCache.get(column)]) {
+            typeCache.set(column, "TEXT");
           }
         }
       }
-    );
+    });
 
     offset++;
   }
 
+  for (const idx in rows) {
+    if (rows[idx] && Object.keys(rows[idx]).length < nameCache.size) {
+      // If we have not set all columns for this row, set the remaining columns to `na`
+      for (const column of nameCache.values()) {
+        if (!rows[idx][nameCache.get(column)]) {
+          console.log(
+            `for ${column}, index ${idx}`,
+            rows[idx][nameCache.get(column)]
+          );
+          console.log(Object.keys(rows[idx]).length);
+          typeCache.set(column, "TEXT");
+        }
+      }
+    }
+  }
+
+  const columnOrderSOT = [
+    DATA_SERIES_MACHINE_NAME,
+    ...Array.from(nameCache.values()).slice(1).reverse(),
+  ];
+
   const parser = new AsyncParser({
     // Singstat likes to show latest first
-    fields: [
-      DATA_SERIES_MACHINE_NAME,
-      ...Array.from(nameCache.values()).slice(1).reverse(),
-    ],
+    fields: columnOrderSOT,
     defaultValue: "na", // Match STB CSV generator
   });
 
@@ -123,12 +143,16 @@ async function timeSeriesCSVBuilder(resourceId) {
     machineToHumanNames: new Map(Array.from(nameCache, (e) => [e[1], e[0]])),
     humanNameToType: typeCache,
     rendered: await parser.parse(rows).promise(),
+    columnOrderSOT: columnOrderSOT,
   };
 }
+//const csv = await timeSeriesCSVBuilder("M601471") 
 
-const csv = await timeSeriesCSVBuilder("M601471")
-
-let columnMetadata = Object.keys(csv.raw[0]).map((machineReadableName) => {
+//console.log(Object.keys(csv.raw[260]).length)
+//const csv = await timeSeriesCSVBuilder("M212971") 
+const csv = await timeSeriesCSVBuilder("M810011") //large file with N.A. values
+console.log(csv.humanNameToType)
+let columnMetadata = csv.columnOrderSOT.map((machineReadableName) => {
     const humanReadableName = csv.machineToHumanNames.get(machineReadableName) ?? 'x'
     return {
       humanReadableName,
@@ -138,9 +162,9 @@ let columnMetadata = Object.keys(csv.raw[0]).map((machineReadableName) => {
     }
   })
 
+//columnMetadata = columnMetadata.sort((a, b) => b.machineReadableName.localeCompare(a.machineReadableName))
 //need to build a checker to see when dataseries is returned - isit at the beginning or the end?? fucksake
-const isDataSeriesFirst = columnMetadata[0].machineReadableName == "DataSeries"
-columnMetadata = isDataSeriesFirst? [columnMetadata[0],...columnMetadata.slice(1).reverse()] : [...columnMetadata.slice(-1),...columnMetadata.slice(0,-1).reverse()]
-console.log(columnMetadata)
+//const isDataSeriesFirst = columnMetadata[0].machineReadableName == "DataSeries"
+//columnMetadata = isDataSeriesFirst? [columnMetadata[0],...columnMetadata.slice(1).reverse()] : [...columnMetadata.slice(-1),...columnMetadata.slice(0,-1).reverse()]
 
 createCSVFile(csv.rendered, "output.csv");
