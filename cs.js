@@ -95,7 +95,6 @@ async function crossSectionalCSVBuilder(resourceId) {
         if (!majorCol.columns) {
           // If there are no columns in the major column
           if (!nameCache.has(majorCol.key)) {
-            console.log(majorCol.key);
             nameCache.set(majorCol.key, normalizeHumanName(majorCol.key));
             typeCache.set(majorCol.key, "NUMBER");
           }
@@ -109,6 +108,7 @@ async function crossSectionalCSVBuilder(resourceId) {
 
           rows[idx][nameCache.get(majorCol.key)] ??= majorCol.value; // If the value does not exist, set the value for the column
           if (
+            majorCol.value &&
             typeCache.get(majorCol.key) !== "TEXT" &&
             !isNumeric(majorCol.value)
           ) {
@@ -135,7 +135,7 @@ async function crossSectionalCSVBuilder(resourceId) {
                 rows[idx][nameCache.get(colName)] ??= col.value; // If the value does not exist, set the value for the column
     
                 if (
-                  !col.value ||
+                  col.value &&
                   (typeCache.get(colName) !== "TEXT" && !isNumeric(col.value))
                 ) {
                   typeCache.set(colName, "TEXT");
@@ -157,7 +157,7 @@ async function crossSectionalCSVBuilder(resourceId) {
                 // console.log(`col value = ${JSON.stringify(col)}`)
                 rows[idx][nameCache.get(colName)] ??= lastCol.value; // If the value does not exist, set the value for the column
                 if (
-                  !lastCol.value ||
+                  lastCol.value &&
                   (typeCache.get(colName) !== "TEXT" && !isNumeric(lastCol.value))
                 ) {
                   typeCache.set(colName, "TEXT");
@@ -176,11 +176,6 @@ async function crossSectionalCSVBuilder(resourceId) {
       // If we have not set all columns for this row, set the remaining columns to `na`
       for (const column of nameCache.values()) {
         if (!rows[idx][nameCache.get(column)]) {
-          console.log(
-            `for ${column}, index ${idx}`,
-            rows[idx][nameCache.get(column)]
-          );
-          console.log(Object.keys(rows[idx]).length);
           typeCache.set(column, "TEXT");
         }
       }
@@ -204,6 +199,5 @@ async function crossSectionalCSVBuilder(resourceId) {
 }
 
 //const csv = await crossSectionalCSVBuilder("16622"); //non problematic
-const csv = await crossSectionalCSVBuilder("8358"); //problematic
+const csv = await crossSectionalCSVBuilder("16524"); //problematic
 createCSVFile(csv.rendered, "output.csv");
-console.log(csv.raw)
