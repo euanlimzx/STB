@@ -1,14 +1,6 @@
 [
   {
-    "id": "M810011",
-    "title": "Singapore Residents By Age Group, Ethnic Group And Sex, End June, Annual"
-  },
-  {
-    "id": "M550002",
-    "title": "International Visitor Arrivals By Inbound Tourism Markets, Monthly, Seasonally Adjusted"
-  },
-  {
-    "id": "16491",
-    "title": "Average Monthly Household Expenditure Among Resident Households by Working Status/Occupation of Main Income Earner and Type of Dwelling"
+    "id": "8191",
+    "title": "Resident Population Aged 15 Years and Over by Age Group, Marital Status, Sex and Residential Status"
   }
 ]

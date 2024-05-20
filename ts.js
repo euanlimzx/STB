@@ -39,7 +39,7 @@ const DATA_SERIES_MACHINE_NAME = normalizeHumanName("Data Series");
 async function timeSeriesCSVBuilder(resourceId) {
   let offset = 0;
   let uoM;
-  const rows = [];
+  const rowCache = new Map();
   const nameCache = new Map([["Data Series", DATA_SERIES_MACHINE_NAME]]); // Human readable to machine readable
   const typeCache = new Map([["Data Series", "TEXT"]]); // Human readable to type
 
@@ -60,68 +60,86 @@ async function timeSeriesCSVBuilder(resourceId) {
 
     // We assume there is no case where 1 column has all `na` values, which is impossible to represent in the format STB provides
     let allColumns = [];
-    // console.log(JSON.stringify(res.data.Data.row))
+
     for (const { columns } of res.data.Data.row) {
       if (columns.length > allColumns.length) {
         allColumns = columns.map(({ key }) => key);
       }
     }
-    res.data.Data.row.forEach(({ columns, rowText, seriesNo, uoM: uomValue }, idx) => {
-      const prefix = (seriesNo.match(/\./g) || []).reduce((a) => `${a}    `, '')
+    res.data.Data.row.forEach(
+      ({ columns, rowText, seriesNo, uoM: uomValue }) => {
+        const prefix = (seriesNo.match(/\./g) || []).reduce(
+          (a) => `${a}    `,
+          ""
+        );
 
-      uoM ??= uomValue
+        uoM ??= uomValue;
 
-      for (const { key, value } of columns) {
-        // If row does not exist, create row with initial column
-        rows[idx] ??= {
-          [DATA_SERIES_MACHINE_NAME]: prefix + rowText, // Title for column header
+        for (const { key, value } of columns) {
+          // If row does not exist, create row with initial column
+          if (!rowCache.has(seriesNo)) {
+            rowCache.set(seriesNo, {
+              [DATA_SERIES_MACHINE_NAME]: prefix + rowText, // Title for column header
+            });
+          }
+
+          // If we do not have the machine name for this column, generate and set the machine name
+          if (!nameCache.has(key)) {
+            nameCache.set(key, normalizeHumanName(key));
+            typeCache.set(key, "NUMERIC");
+          }
+
+          rowCache.get(seriesNo)[nameCache.get(key)] = value; // Set the value for the column
+
+          if (typeCache.get(key) !== "TEXT" && !isNumeric(value)) {
+            typeCache.set(key, "TEXT");
+          }
         }
 
-        // If we do not have the machine name for this column, generate and set the machine name
-        if (!nameCache.has(key)) {
-          nameCache.set(key, normalizeHumanName(key))
-          typeCache.set(key, "NUMERIC")
-        }
-
-        rows[idx][nameCache.get(key)] = value // Set the value for the column
-
-        if (typeCache.get(key) !== "TEXT" && !isNumeric(value)) {
-          typeCache.set(key, "TEXT")
-        }
-      }
-
-      if (rows[idx] && Object.keys(rows[idx]).length < allColumns.length) {
-        // If we have not set all columns for this row, set the remaining columns to `na`
-        for (const column of allColumns) {
-          if (!rows[idx][nameCache.get(column)]) {
-            typeCache.set(column, "TEXT")
+        if (
+          rowCache.get(seriesNo) &&
+          Object.keys(rowCache.get(seriesNo)).length < allColumns.length
+        ) {
+          // If we have not set all columns for this row, set the remaining columns to `na`
+          for (const column of allColumns) {
+            if (!rowCache.get(seriesNo)[nameCache.get(column)]) {
+              typeCache.set(column, "TEXT");
+            }
           }
         }
       }
-    })
+    );
 
-    offset++
+    offset++;
   }
 
   const columnOrderSOT = [
     DATA_SERIES_MACHINE_NAME,
     ...Array.from(nameCache.values()).slice(1).reverse(),
-  ]
+  ];
 
   const parser = new AsyncParser({
     // Singstat likes to show latest first
     fields: columnOrderSOT,
-    defaultValue: 'na', // Match STB CSV generator
-  })
+    defaultValue: "na", // Match STB CSV generator
+  });
 
+  const rows = Array.from(rowCache.values());
+  console.log({
+    uoM,
+    machineToHumanNames: new Map(Array.from(nameCache, (e) => [e[1], e[0]])),
+    humanNameToType: typeCache,
+    rendered: await parser.parse(rows).promise(),
+    columnOrderSOT,
+  });
   return {
     uoM,
     raw: rows,
     machineToHumanNames: new Map(Array.from(nameCache, (e) => [e[1], e[0]])),
     humanNameToType: typeCache,
     rendered: await parser.parse(rows).promise(),
-    columnOrderSOT
-  }
+    columnOrderSOT,
+  };
 }
 
 const csv = await timeSeriesCSVBuilder("M550002");

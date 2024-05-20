@@ -7,9 +7,9 @@ async function fetchData() {
   const outputFile = "list.txt";
   let output = [];
 
-  for (const id of DATASET_IDS) {
+  // for (const id of DATASET_IDS) {
     try {
-      const url = `${baseURL}/${id}`;
+      const url = `${baseURL}/8191`;
       console.log(url);
       const response = await axios.get(url, { timeout: 500 });
       console.log(JSON.stringify(response.data));
@@ -20,7 +20,7 @@ async function fetchData() {
     } catch (error) {
       console.log(error);
     }
-  }
+  // }
 
   // Write output to file
   try {
