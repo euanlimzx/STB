@@ -32,3 +32,7 @@ async function fetchData() {
 }
 
 fetchData();
+
+"1H"
+"1Q"
+"2027"
