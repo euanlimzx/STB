@@ -73,6 +73,7 @@ async function crossSectionalCSVBuilder(resourceId) {
       console.log("failed to get stb dataset", { res });
       throw new Error("failed to get stb dataset");
     }
+    console.log(JSON.stringify(res.data.Data))
 
     // Check that each value in every row and column exists. If all values are empty, we have reached the end of the data
     if (
@@ -172,16 +173,13 @@ async function crossSectionalCSVBuilder(resourceId) {
   }
 
   for (const idx in rows) {
-    if (rows[idx] && Object.keys(rows[idx]).length < nameCache.size) {
       // If we have not set all columns for this row, set the remaining columns to `na`
-      for (const column of nameCache.values()) {
+      for (const column of nameCache.keys()) {
         if (!rows[idx][nameCache.get(column)]) {
           typeCache.set(column, "TEXT");
         }
       }
-    }
   }
-
   const columnOrderSOT = Array.from(nameCache.values())
   const parser = new AsyncParser({
     fields: columnOrderSOT,
@@ -198,5 +196,6 @@ async function crossSectionalCSVBuilder(resourceId) {
   };
 }
 
-const csv = await crossSectionalCSVBuilder("8191"); //problematic
+const csv = await crossSectionalCSVBuilder("8233"); //problematic
 createCSVFile(csv.rendered, "output.csv");
+console.log(csv.humanNameToType)

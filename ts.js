@@ -51,6 +51,7 @@ async function timeSeriesCSVBuilder(resourceId) {
         offset * MAX_CELLS_PER_PAGE
       }&limit=${MAX_CELLS_PER_PAGE}`
     );
+    console.log(JSON.stringify(res.data.Data))
 
     if (res.status !== 200) {
       console.log("failed to get stb dataset", { res });
@@ -125,13 +126,6 @@ async function timeSeriesCSVBuilder(resourceId) {
   });
 
   const rows = Array.from(rowCache.values());
-  console.log({
-    uoM,
-    machineToHumanNames: new Map(Array.from(nameCache, (e) => [e[1], e[0]])),
-    humanNameToType: typeCache,
-    rendered: await parser.parse(rows).promise(),
-    columnOrderSOT,
-  });
   return {
     uoM,
     raw: rows,
@@ -142,5 +136,6 @@ async function timeSeriesCSVBuilder(resourceId) {
   };
 }
 
-const csv = await timeSeriesCSVBuilder("M550002");
+const csv = await timeSeriesCSVBuilder("M212911");
 createCSVFile(csv.rendered, "output.csv");
+console.log(JSON.stringify(csv.humanNameToType))

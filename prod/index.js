@@ -3,7 +3,7 @@ import fs from "fs/promises";
 import axios from "axios";
 const outputFile = "admindatasets.js";
 const admin =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2MDQ3IiwiZW1haWwiOiJhZG1pbitzdGJAZGF0YS5nb3Yuc2ciLCJ1c2VyQWdlbmN5TmFtZSI6IkNvdW5jaWwgRm9yIEVzdGF0ZSBBZ2VuY2llcyIsImlhdCI6MTcxNjE4MTM1NiwiZXhwIjoxNzE2MjY3NzU2fQ.OIBFY5T3kvXPLgBb1K8Z1ihCe2fLUZc7GosjhKnGndA";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2MDQ3IiwiZW1haWwiOiJhZG1pbitzdGJAZGF0YS5nb3Yuc2ciLCJ1c2VyQWdlbmN5TmFtZSI6IkhvdXNpbmcgYW5kIERldmVsb3BtZW50IEJvYXJkIiwiaWF0IjoxNzE2NzkwNDA2LCJleHAiOjE3MTY4NzY4MDZ9.bwoTgtXS8y5fk4I-mCncU4pBQ1kKodJCC0gI9lndTt0";
 
 const headers = {
   "Content-Type": "application/json",
@@ -15,7 +15,7 @@ axios.defaults.timeout = 2000;
 async function fetchData() {
   const results = [];
   const errors = [];
-  for (let page = 1; page < 62; page++) {
+  for (let page = 1; page < 90; page++) {
     console.log(page);
     try {
       const response = await axios.get(

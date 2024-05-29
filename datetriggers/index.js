@@ -32,7 +32,7 @@ import fs from "fs/promises";
 export const originalTrigger = async () => {
   // We want split up the ~400 datasets across 28 days (accounting for Feb), so break up the DATASET_ID list into 28 chunks
   // This also means we don't run anything on days 29, 30, 31
-  const results = {}
+  const results = {};
   const CHUNKS = 28;
   const date = 0;
 
@@ -46,14 +46,10 @@ export const originalTrigger = async () => {
   const slices = Array.from({ length: CHUNKS }, (_, i) => {
     return data.slice(i * size, i * size + size);
   });
-
   await fs.writeFile("slices.js", JSON.stringify(slices, null, 2));
-
-
-  // console.log("processing singstat datasets", {
-  //   date,
-  //   slice: slices[date - 1],
-  // });
+  for (const slice in slices) {
+    console.log(slice, slices[slice]);
+  }
 };
 
-originalTrigger()
+originalTrigger();
